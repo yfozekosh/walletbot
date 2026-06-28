@@ -16,26 +16,37 @@ Home finance automation — syncs transaction data from **BudgetBakers Wallet** 
 
 ## Architecture
 
-```
-BudgetBakers API  ──►  wallet-sync  ──► Supabase DB
-                        (every 29min)
+```mermaid
+flowchart LR
+  subgraph Sources
+    WB[BudgetBakers Wallet API]
+    GS[Google Sheets]
+    JW[Jira Webhook]
+    TG_CMD[Telegram /sync /report /transactions]
+  end
 
-Supabase DB       ──►  wallet-balances ──► Telegram
-                        (daily 07:00)
+  subgraph Supabase["Supabase (Edge Functions)"]
+    WS[wallet-sync]
+    WBAL[wallet-balances]
+    WT[wallet-transactions]
+    DR[daily-reconciliation]
+    TB[telegram-bot]
+    JT[jira-telegram]
+    JBS[jira-batch-sender]
+    DB[("Postgres DB")]
+    JB[(jira_buffer)]
+  end
 
-Supabase DB       ──►  wallet-transactions ──► Telegram
-                        (cron / /transactions command)
+  subgraph Output
+    TG[Telegram Chats]
+  end
 
-Google Sheets     ──►  daily-reconciliation ──► Telegram
-                        (daily 06:00)
-
-Jira webhook      ──►  jira-telegram ──► jira_buffer ──► jira-batch-sender ──► Telegram
-                                     (every 1min)
-
-Telegram          ──►  telegram-bot (webhook)
-  /sync               ──► wallet-sync
-  /report             ──► wallet-balances
-  /transactions [N]   ──► wallet-transactions
+  WB -- every 29min --> WS --> DB
+  DB --> WBAL -- daily 07:00 --> TG
+  DB --> WT -- cron / command --> TG
+  GS --> DR -- daily 06:00 --> TG
+  JW --> JT --> JB -- every 1min --> JBS --> TG
+  TG_CMD --> TB --> WS & WBAL & WT
 ```
 
 ## Edge Functions
