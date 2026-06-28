@@ -18,41 +18,47 @@ Home finance automation — syncs transaction data from **BudgetBakers Wallet** 
 
 ```mermaid
 flowchart LR
-  subgraph Sources
+  subgraph External
     WB[BudgetBakers Wallet API]
     GS[Google Sheets]
     JW[Jira Webhook]
-    TG_CMD[Telegram /sync /report /transactions]
   end
 
-  subgraph Edge["Edge Functions"]
+  subgraph Bot["Telegram Bot"]
+    User{{"You in Telegram"}} -.-> TG[Telegram API]
+    TG -.-> TB[telegram-bot webhook]
+  end
+
+  subgraph Functions["Edge Functions"]
     WS[wallet-sync]
     WBAL[wallet-balances]
     WT[wallet-transactions]
     DR[daily-reconciliation]
-    TB[telegram-bot]
     JT[jira-telegram]
     JBS[jira-batch-sender]
   end
 
-  subgraph Store["Databases"]
-    DB[("Postgres DB")]
-    JB[(jira_buffer)]
+  subgraph DB["Postgres Database"]
+    direction LR
+    MAIN[("wallet_* tables")]
+    BUF[("jira_buffer table")]
   end
 
   subgraph Output
-    TG[Telegram Chats]
+    NOTIF[Telegram notifications]
   end
 
-  WB -- every 29min --> WS --> DB
-  DB --> WBAL -- daily 07:00 --> TG
-  DB --> WT -- cron / command --> TG
-  GS --> DR -- daily 06:00 --> TG
-  JW --> JT --> JB -- every 1min --> JBS --> TG
-  TG_CMD --> TB --> WS & WBAL & WT
+  WB -- every 29min --> WS --> MAIN
+  MAIN --> WBAL -- daily 07:00 --> NOTIF
+  MAIN --> WT -- cron / manual --> NOTIF
+  GS --> DR -- daily 06:00 --> NOTIF
+  JW --> JT --> BUF -- every 1min --> JBS --> NOTIF
+  TB -.->|triggers| WS
+  TB -.->|triggers| WBAL
+  TB -.->|triggers| WT
 ```
 
-**Legend:** ▢ = Edge Function | 💾 = Database | ➡️ = triggers/calls | Label on arrow = trigger type
+**Legend:** ▢ = Edge Function | 💾 = Table | ➡️ = direct call | -➡️ = webhook | Label = trigger
 
 ## Edge Functions
 
