@@ -73,7 +73,7 @@ flowchart LR
   DR -->|send message| TG
 
   %% Telegram bot flow
-  User{{"You type a command"}} -.->|/sync /report /transactions| TB
+  User["You type a command"] -.->|/sync /report /transactions| TB
   TB -- "HTTP POST (service_role)" --> WS
   TB -- "HTTP POST (service_role)" --> WBAL
   TB -- "HTTP POST (service_role)" --> WT
