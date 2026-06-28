@@ -17,37 +17,52 @@ Home finance automation — syncs transaction data from **BudgetBakers Wallet** 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  subgraph Sources
-    WB[BudgetBakers Wallet API]
-    GS[Google Sheets]
-    JW[Jira Webhook]
-    TG_CMD[Telegram /sync /report /transactions]
+flowchart TB
+  subgraph External["External"]
+    WB(("BudgetBakers API"))
+    GS(("Google Sheets"))
+    JW(("Jira Webhook"))
+    TGcmd(("Telegram /cmd"))
   end
 
-  subgraph Supabase["Supabase (Edge Functions)"]
-    WS[wallet-sync]
-    WBAL[wallet-balances]
-    WT[wallet-transactions]
-    DR[daily-reconciliation]
-    TB[telegram-bot]
-    JT[jira-telegram]
-    JBS[jira-batch-sender]
-    DB[("Postgres DB")]
-    JB[(jira_buffer)]
+  subgraph Edge["Edge Functions"]
+    WS["wallet-sync ⏰29min"]
+    WBAL["wallet-balances ⏰07:00"]
+    WT["wallet-transactions"]
+    DR["daily-reconciliation ⏰06:00"]
+    TB["telegram-bot 💬"]
+    JT["jira-telegram"]
+    JBS["jira-batch-sender ⏰1min"]
   end
 
-  subgraph Output
-    TG[Telegram Chats]
+  subgraph Store["Database"]
+    DB{{"Postgres"}}
+    JB{{"jira_buffer"}}
   end
 
-  WB -- every 29min --> WS --> DB
-  DB --> WBAL -- daily 07:00 --> TG
-  DB --> WT -- cron / command --> TG
-  GS --> DR -- daily 06:00 --> TG
-  JW --> JT --> JB -- every 1min --> JBS --> TG
-  TG_CMD --> TB --> WS & WBAL & WT
+  subgraph Output["Output"]
+    TG(("Telegram Chat"))
+  end
+
+  WB --> WS --> DB
+  DB --> WBAL --> TG
+  DB --> WT --> TG
+  GS --> DR --> DB
+  DR --> TG
+  JW --> JT --> JB
+  JB --> JBS --> TG
+  TGcmd --> TB --> WS & WBAL & WT
+
+  style WS fill:#e3f2fd
+  style WBAL fill:#e3f2fd
+  style WT fill:#e3f2fd
+  style DR fill:#e3f2fd
+  style TB fill:#e3f2fd
+  style JT fill:#e3f2fd
+  style JBS fill:#e3f2fd
 ```
+
+**Legend:** ▢ Rectangle = Edge Function | ◇ Diamond = Database | 🏛️ Cylinder = External | ➡️ Arrow = triggers/calls | ⏰ = Cron schedule | 💬 = Telegram command
 
 ## Edge Functions
 
