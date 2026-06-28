@@ -28,9 +28,13 @@ serve(async (req) => {
       new TextEncoder().encode(webhookSecret),
       { name: "HMAC", hash: "SHA-256" },
       false,
-      ["sign"]
+      ["sign"],
     );
-    const sigBuffer = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(rawBody));
+    const sigBuffer = await crypto.subtle.sign(
+      "HMAC",
+      key,
+      new TextEncoder().encode(rawBody),
+    );
     const computedSig = Array.from(new Uint8Array(sigBuffer))
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -63,10 +67,13 @@ serve(async (req) => {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
   if (!supabaseUrl || !serviceKey) {
-    return new Response(JSON.stringify({ error: "Missing Supabase env vars" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Missing Supabase env vars" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
 
   const supabase = createClient(supabaseUrl, serviceKey);

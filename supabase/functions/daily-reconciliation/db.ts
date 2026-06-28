@@ -66,14 +66,11 @@ export function centsToEur(cents: number): number {
 
 export async function fetchCurrentMonthExpenses(
   year: number,
-  month: number
+  month: number,
 ): Promise<DBRecord[]> {
   const db = getSql();
   const monthStart = `${year}-${String(month).padStart(2, "0")}-01`;
-  const monthEnd =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const monthEnd = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
   const rows = await db`
     SELECT wr.id, wr.record_date, wr.note, wr.category_name,
@@ -83,7 +80,10 @@ export async function fetchCurrentMonthExpenses(
     WHERE wr.record_date >= ${monthStart}
       AND wr.record_date < ${monthEnd}
       AND (wr.transfer IS NULL OR wr.transfer = false)
-      AND wr.category_id != ${Deno.env.get("TRANSFER_CATEGORY_ID") ?? "244ba639-43e7-4c23-9af4-1787524a906c"}
+      AND wr.category_id != ${
+    Deno.env.get("TRANSFER_CATEGORY_ID") ??
+      "244ba639-43e7-4c23-9af4-1787524a906c"
+  }
       AND wa.name IS NOT NULL
     ORDER BY wr.record_date
   `;

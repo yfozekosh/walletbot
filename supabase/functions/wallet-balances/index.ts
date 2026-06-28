@@ -5,8 +5,10 @@ import { ReportData } from "./types.ts";
 
 function getDateRange(): { monthStart: string; monthEnd: string } {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString().slice(0, 10);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString().slice(0, 10);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    .toISOString().slice(0, 10);
   return { monthStart, monthEnd };
 }
 
@@ -57,13 +59,21 @@ Deno.serve(async (req: Request) => {
     const cashflowByCurrency = calculator.calculateCashflow(monthRecords);
 
     const transferRecords = await repo.fetchTransferRecords(monthStart);
-    const { pendingTransfers, incomingByAccountId } = calculator.calculatePendingTransfers(
-      transferRecords, accountMap, identifierToAccount
-    );
+    const { pendingTransfers, incomingByAccountId } = calculator
+      .calculatePendingTransfers(
+        transferRecords,
+        accountMap,
+        identifierToAccount,
+      );
 
     const reportData: ReportData = {
-      accounts, cashflowByCurrency, pendingTransfers,
-      incomingByAccountId, lastSync, latestRecordDate, latestRecordPerAccount,
+      accounts,
+      cashflowByCurrency,
+      pendingTransfers,
+      incomingByAccountId,
+      lastSync,
+      latestRecordDate,
+      latestRecordPerAccount,
     };
 
     const message = presenter.buildMessage(reportData);

@@ -1,5 +1,5 @@
 import { config } from "./config.ts";
-import type { AccountInfo, BudgetInfo, AccountMapEntry } from "./types.ts";
+import type { AccountInfo, AccountMapEntry, BudgetInfo } from "./types.ts";
 import sql from "./db.ts";
 
 export class DatabaseRepository {
@@ -17,7 +17,12 @@ export class DatabaseRepository {
     return { accounts };
   }
 
-  async fetchAccountMap(): Promise<{ accountMap: Record<string, AccountMapEntry>; identifierToAccount: Record<string, string> }> {
+  async fetchAccountMap(): Promise<
+    {
+      accountMap: Record<string, AccountMapEntry>;
+      identifierToAccount: Record<string, string>;
+    }
+  > {
     const rows = await sql`SELECT id, name, bank_account_number, transfer_aliases FROM wallet_accounts`;
 
     const accountMap: Record<string, AccountMapEntry> = {};
@@ -31,7 +36,9 @@ export class DatabaseRepository {
         currency: config.defaultCurrency,
         aliases,
       };
-      if (a.bank_account_number) identifierToAccount[a.bank_account_number] = a.id;
+      if (a.bank_account_number) {
+        identifierToAccount[a.bank_account_number] = a.id;
+      }
       for (const alias of aliases) identifierToAccount[alias] = a.id;
     }
 
@@ -40,8 +47,15 @@ export class DatabaseRepository {
 
   async fetchMonthRecords(
     monthStart: string,
-    monthEnd: string
-  ): Promise<{ amount_value: string | null; amount_currency: string | null; base_amount_value: string | null; record_type: string | null }[]> {
+    monthEnd: string,
+  ): Promise<
+    {
+      amount_value: string | null;
+      amount_currency: string | null;
+      base_amount_value: string | null;
+      record_type: string | null;
+    }[]
+  > {
     const rows = await sql`
       SELECT amount_value, amount_currency, base_amount_value, record_type
       FROM wallet_records
@@ -49,19 +63,40 @@ export class DatabaseRepository {
         AND record_date < ${monthEnd}
         AND category_id != ${config.transferCategoryId}
     `;
-    return rows as { amount_value: string | null; amount_currency: string | null; base_amount_value: string | null; record_type: string | null }[];
+    return rows as {
+      amount_value: string | null;
+      amount_currency: string | null;
+      base_amount_value: string | null;
+      record_type: string | null;
+    }[];
   }
 
   async fetchTransferRecords(
-    monthStart: string
-  ): Promise<{ id: string; account_id: string | null; record_date: string | null; note: string | null; amount_value: string | null; payee: string | null }[]> {
+    monthStart: string,
+  ): Promise<
+    {
+      id: string;
+      account_id: string | null;
+      record_date: string | null;
+      note: string | null;
+      amount_value: string | null;
+      payee: string | null;
+    }[]
+  > {
     const rows = await sql`
       SELECT id, account_id, record_date, note, amount_value, payee
       FROM wallet_records
       WHERE category_id = ${config.transferCategoryId}
         AND record_date >= ${monthStart}
     `;
-    return rows as { id: string; account_id: string | null; record_date: string | null; note: string | null; amount_value: string | null; payee: string | null }[];
+    return rows as {
+      id: string;
+      account_id: string | null;
+      record_date: string | null;
+      note: string | null;
+      amount_value: string | null;
+      payee: string | null;
+    }[];
   }
 
   async fetchLastSyncTime(): Promise<string | null> {
@@ -85,7 +120,7 @@ export class DatabaseRepository {
     if (rows.length === 0) return null;
     const val = rows[0].record_date;
     if (val instanceof Date) return val.toISOString().slice(0, 10);
-    return String(val ?? '');
+    return String(val ?? "");
   }
 
   async fetchLatestRecordPerAccount(): Promise<Record<string, string>> {

@@ -15,12 +15,13 @@ export class WalletApiClient {
 
   private async request(
     endpoint: string,
-    params: Record<string, string | number | string[]>
+    params: Record<string, string | number | string[]>,
   ): Promise<Record<string, unknown>> {
     const url = new URL(`${config.walletBaseUrl}${endpoint}`);
     for (const [key, value] of Object.entries(params)) {
-      if (Array.isArray(value)) for (const v of value) url.searchParams.append(key, v);
-      else url.searchParams.set(key, String(value));
+      if (Array.isArray(value)) {
+        for (const v of value) url.searchParams.append(key, v);
+      } else url.searchParams.set(key, String(value));
     }
     const response = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${this.token}` },
@@ -31,26 +32,37 @@ export class WalletApiClient {
     }
     if (response.status === 409) {
       const body = await response.json();
-      throw new RetryableError("sync in progress", (body.retry_after_minutes ?? 5) * 60);
+      throw new RetryableError(
+        "sync in progress",
+        (body.retry_after_minutes ?? 5) * 60,
+      );
     }
-    if (!response.ok)
-      throw new WalletApiError(`HTTP ${response.status} on ${endpoint}: ${await response.text()}`);
+    if (!response.ok) {
+      throw new WalletApiError(
+        `HTTP ${response.status} on ${endpoint}: ${await response.text()}`,
+      );
+    }
     return response.json();
   }
 
   async get(
     endpoint: string,
-    params: Record<string, string | number | string[]>
+    params: Record<string, string | number | string[]>,
   ): Promise<Record<string, unknown>> {
     for (let attempt = 1; attempt <= config.maxRetries; attempt++) {
       try {
         return await this.request(endpoint, params);
       } catch (err) {
         if (err instanceof RetryableError) {
-          if (attempt === config.maxRetries)
-            throw new WalletApiError(`Giving up on ${endpoint} after ${config.maxRetries} attempts: ${err.message}`);
+          if (attempt === config.maxRetries) {
+            throw new WalletApiError(
+              `Giving up on ${endpoint} after ${config.maxRetries} attempts: ${err.message}`,
+            );
+          }
           const wait = err.waitSeconds || config.retryBackoffBase ** attempt;
-          console.warn(`${endpoint}: retrying in ${wait}s (attempt ${attempt}/${config.maxRetries})`);
+          console.warn(
+            `${endpoint}: retrying in ${wait}s (attempt ${attempt}/${config.maxRetries})`,
+          );
           await sleep(wait * 1000);
         } else throw err;
       }
@@ -58,8 +70,13 @@ export class WalletApiClient {
     throw new WalletApiError(`Failed to fetch ${endpoint}`);
   }
 
-  async* fetchAllRecords(dateRange?: [string, string]): AsyncGenerator<Record<string, unknown>> {
-    const params: Record<string, string | number | string[]> = { limit: config.pageSize, offset: 0 };
+  async *fetchAllRecords(
+    dateRange?: [string, string],
+  ): AsyncGenerator<Record<string, unknown>> {
+    const params: Record<string, string | number | string[]> = {
+      limit: config.pageSize,
+      offset: 0,
+    };
     if (dateRange) {
       params["recordDate"] = [`gte.${dateRange[0]}`, `lte.${dateRange[1]}`];
     }
@@ -74,7 +91,9 @@ export class WalletApiClient {
     }
   }
 
-  async fetchRecordsInDateChunks(chunkDays: number): Promise<Record<string, unknown>[]> {
+  async fetchRecordsInDateChunks(
+    chunkDays: number,
+  ): Promise<Record<string, unknown>[]> {
     const allItems: Record<string, unknown>[] = [];
     const seenIds = new Set<string>();
     let chunkEnd = new Date();

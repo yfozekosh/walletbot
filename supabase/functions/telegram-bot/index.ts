@@ -5,19 +5,26 @@ async function callEdgeFunction(
   supabaseUrl: string,
   serviceKey: string,
   functionName: string,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
   const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serviceKey}`,
+    },
     body: JSON.stringify(body),
   });
   return resp.json();
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "GET") return new Response("telegram-bot webhook active", { status: 200 });
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
+  if (req.method === "GET") {
+    return new Response("telegram-bot webhook active", { status: 200 });
+  }
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405 });
+  }
 
   const botToken = Deno.env.get("TELEGRAM_BOT_TOKEN");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -25,7 +32,10 @@ Deno.serve(async (req: Request) => {
   const webhookSecret = Deno.env.get("TELEGRAM_WEBHOOK_SECRET");
 
   if (!botToken || !supabaseUrl || !supabaseServiceKey) {
-    return new Response(JSON.stringify({ error: "Missing env vars" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "Missing env vars" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   if (webhookSecret) {
@@ -59,22 +69,45 @@ Deno.serve(async (req: Request) => {
   try {
     if (text === "/sync") {
       await telegram.sendMessage(chatIdStr, "\u23F3 Syncing...");
-      const result = await callEdgeFunction(supabaseUrl, supabaseServiceKey, "wallet-sync", {});
+      const result = await callEdgeFunction(
+        supabaseUrl,
+        supabaseServiceKey,
+        "wallet-sync",
+        {},
+      );
       const status = result.status;
-      await telegram.sendMessage(chatIdStr, status === "ok" ? "\u2705 Sync complete" : `\u26A0\uFE0F Sync: ${status}`);
+      await telegram.sendMessage(
+        chatIdStr,
+        status === "ok" ? "\u2705 Sync complete" : `\u26A0\uFE0F Sync: ${status}`,
+      );
     } else if (text === "/report") {
       await telegram.sendMessage(chatIdStr, "\u23F3 Generating report...");
-      await callEdgeFunction(supabaseUrl, supabaseServiceKey, "wallet-balances", { telegram: true, chat_id: chatIdStr });
+      await callEdgeFunction(
+        supabaseUrl,
+        supabaseServiceKey,
+        "wallet-balances",
+        { telegram: true, chat_id: chatIdStr },
+      );
     } else if (text.startsWith("/transactions")) {
       const parts = text.split(/\s+/);
       const day = parts.length > 1 ? parseInt(parts[1], 10) : 0;
       const label = isNaN(day) || day === 0 ? "today" : day === 1 ? "yesterday" : `${day} days ago`;
-      await telegram.sendMessage(chatIdStr, `\u23F3 Fetching transactions (${label})...`);
-      await callEdgeFunction(supabaseUrl, supabaseServiceKey, "wallet-transactions", { day: isNaN(day) ? 0 : day, chat_id: chatIdStr });
+      await telegram.sendMessage(
+        chatIdStr,
+        `\u23F3 Fetching transactions (${label})...`,
+      );
+      await callEdgeFunction(
+        supabaseUrl,
+        supabaseServiceKey,
+        "wallet-transactions",
+        { day: isNaN(day) ? 0 : day, chat_id: chatIdStr },
+      );
     }
   } catch (err) {
     console.error("Command error:", err);
-    try { await telegram.sendMessage(chatIdStr, `\u274C Error: ${err}`); } catch {}
+    try {
+      await telegram.sendMessage(chatIdStr, `\u274C Error: ${err}`);
+    } catch {}
   }
 
   return new Response("ok", { status: 200 });

@@ -23,12 +23,20 @@ function getDateOffset(daysAgo: number): string {
   return now.toLocaleDateString("en-CA", { timeZone: "Europe/Berlin" });
 }
 
-async function sendTelegram(botToken: string, chatId: string, message: string): Promise<void> {
+async function sendTelegram(
+  botToken: string,
+  chatId: string,
+  message: string,
+): Promise<void> {
   const url = `${config.telegramApiBase}/bot${botToken}/sendMessage`;
   const resp = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: "HTML" }),
+    body: JSON.stringify({
+      chat_id: chatId,
+      text: message,
+      parse_mode: "HTML",
+    }),
   });
   if (!resp.ok) {
     const body = await resp.text();
@@ -60,12 +68,17 @@ Deno.serve(async (req: Request) => {
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
-  const missing = ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
-    .filter(k => !Deno.env.get(k));
+  const missing = [
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+  ]
+    .filter((k) => !Deno.env.get(k));
   if (missing.length) {
     return new Response(
       JSON.stringify({ error: `Missing env vars: ${missing.join(", ")}` }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
@@ -95,45 +108,65 @@ Deno.serve(async (req: Request) => {
 
       const records = await repo.fetchRecordsForDateRange(yesterday, today);
       const shownIds = await repo.fetchShownRecordIds();
-      const newRecords = records.filter(r => !shownIds.has(r.id));
+      const newRecords = records.filter((r) => !shownIds.has(r.id));
 
       const dateLabel = yesterday === today
         ? getDateLabel(today)
         : `${getDateLabel(yesterday)} \u2013 ${getDateLabel(today)}`;
 
       const omittedCount = records.length - newRecords.length;
-      const message = presenter.buildMessage(newRecords, accountNames, dateLabel, {
-        mode: "cron",
-        omittedCount,
-      });
+      const message = presenter.buildMessage(
+        newRecords,
+        accountNames,
+        dateLabel,
+        {
+          mode: "cron",
+          omittedCount,
+        },
+      );
       await sendTelegram(botToken!, targetChatId, message);
 
       if (newRecords.length > 0) {
-        await repo.markAsShown(newRecords.map(r => r.id));
+        await repo.markAsShown(newRecords.map((r) => r.id));
       }
 
       return new Response(
-        JSON.stringify({ status: "ok", mode: "cron", dates: [yesterday, today], records_found: records.length, records_shown: newRecords.length, sent: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          status: "ok",
+          mode: "cron",
+          dates: [yesterday, today],
+          records_found: records.length,
+          records_shown: newRecords.length,
+          sent: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     } else {
       const targetDate = getDateOffset(day);
       const records = await repo.fetchRecordsForDate(targetDate);
       const dateLabel = getDateLabel(targetDate);
 
-      const message = presenter.buildMessage(records, accountNames, dateLabel, { mode: "command" });
+      const message = presenter.buildMessage(records, accountNames, dateLabel, {
+        mode: "command",
+      });
       await sendTelegram(botToken!, targetChatId, message);
 
       return new Response(
-        JSON.stringify({ status: "ok", mode: "command", date: targetDate, records_shown: records.length, sent: true }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          status: "ok",
+          mode: "command",
+          date: targetDate,
+          records_shown: records.length,
+          sent: true,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       );
     }
   } catch (err) {
     console.error("wallet-transactions error:", err);
     return new Response(
       JSON.stringify({ error: String(err) }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 });

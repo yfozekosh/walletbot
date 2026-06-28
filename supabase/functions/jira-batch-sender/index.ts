@@ -3,16 +3,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractUpdates, formatBatches } from "./utils.ts";
 
 async function sendTelegram(botToken: string, chatId: string, text: string) {
-  const resp = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      parse_mode: "HTML",
-      text,
-      disable_web_page_preview: true,
-    }),
-  });
+  const resp = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        parse_mode: "HTML",
+        text,
+        disable_web_page_preview: true,
+      }),
+    },
+  );
   if (!resp.ok) {
     const body = await resp.text();
     throw new Error(`Telegram API error ${resp.status}: ${body}`);
@@ -92,7 +95,7 @@ serve(async (req) => {
         updates: allUpdates.length,
         messages: messages.length,
       }),
-      { headers: { "Content-Type": "application/json" } }
+      { headers: { "Content-Type": "application/json" } },
     );
   } catch (error) {
     console.error(error);

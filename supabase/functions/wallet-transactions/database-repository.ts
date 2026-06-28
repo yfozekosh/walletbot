@@ -35,7 +35,10 @@ export class DatabaseRepository {
     return (data ?? []) as TransactionRecord[];
   }
 
-  async fetchRecordsForDateRange(start: string, end: string): Promise<TransactionRecord[]> {
+  async fetchRecordsForDateRange(
+    start: string,
+    end: string,
+  ): Promise<TransactionRecord[]> {
     const { data, error } = await this.db
       .from("wallet_records")
       .select(`
@@ -52,7 +55,9 @@ export class DatabaseRepository {
     return (data ?? []) as TransactionRecord[];
   }
 
-  async fetchAccountNames(): Promise<Record<string, { name: string; type: string | null }>> {
+  async fetchAccountNames(): Promise<
+    Record<string, { name: string; type: string | null }>
+  > {
     const { data, error } = await this.db
       .from("wallet_accounts")
       .select("id, name, account_type");
@@ -71,12 +76,15 @@ export class DatabaseRepository {
       .select("record_id");
 
     if (error) throw new Error(`fetchShownRecordIds: ${error.message}`);
-    return new Set((data ?? []).map(r => r.record_id));
+    return new Set((data ?? []).map((r) => r.record_id));
   }
 
   async markAsShown(recordIds: string[]): Promise<void> {
     if (recordIds.length === 0) return;
-    const rows = recordIds.map(id => ({ record_id: id, trigger_type: "cron" }));
+    const rows = recordIds.map((id) => ({
+      record_id: id,
+      trigger_type: "cron",
+    }));
     const { error } = await this.db
       .from("wallet_shown_transactions")
       .upsert(rows, { onConflict: "record_id" });
@@ -84,7 +92,10 @@ export class DatabaseRepository {
   }
 }
 
-export function createRepository(supabaseUrl: string, serviceKey: string): DatabaseRepository {
+export function createRepository(
+  supabaseUrl: string,
+  serviceKey: string,
+): DatabaseRepository {
   const db = createClient(supabaseUrl, serviceKey);
   return new DatabaseRepository(db);
 }

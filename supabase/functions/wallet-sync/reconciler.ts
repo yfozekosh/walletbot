@@ -6,19 +6,23 @@ import { ReconcileResult } from "./types.ts";
 export class Reconciler {
   constructor(
     private apiClient: WalletApiClient,
-    private repo: DatabaseRepository
+    private repo: DatabaseRepository,
   ) {}
 
   async run(): Promise<ReconcileResult> {
     const today = new Date();
-    const windowStart = new Date(today.getTime() - config.reconcileDays * 86400000)
+    const windowStart = new Date(
+      today.getTime() - config.reconcileDays * 86400000,
+    )
       .toISOString().slice(0, 10);
     const windowEnd = today.toISOString().slice(0, 10);
 
     console.log(`  Reconciling records from ${windowStart} to ${windowEnd}...`);
 
     const apiIds = new Set<string>();
-    for await (const item of this.apiClient.fetchAllRecords([windowStart, windowEnd])) {
+    for await (
+      const item of this.apiClient.fetchAllRecords([windowStart, windowEnd])
+    ) {
       apiIds.add(item["id"] as string);
     }
     console.log(`  API returned ${apiIds.size} record IDs`);

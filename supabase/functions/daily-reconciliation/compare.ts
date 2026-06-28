@@ -1,4 +1,4 @@
-import { SheetItem, DBRecord, EnvelopeRow, MatchResult, EnvelopeCheck, SummaryCheck, Report } from "./types.ts";
+import { DBRecord, EnvelopeCheck, EnvelopeRow, MatchResult, Report, SheetItem, SummaryCheck } from "./types.ts";
 import { parseEuro } from "./google-sheets.ts";
 import { config } from "./config.ts";
 
@@ -117,7 +117,8 @@ function isDueInCurrentMonth(nextPayment: string): boolean {
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const y = String(now.getFullYear());
   const ys = y.slice(2);
-  return nextPayment.includes(`${m}.${y}`) || nextPayment.includes(`${m}.${ys}`);
+  return nextPayment.includes(`${m}.${y}`) ||
+    nextPayment.includes(`${m}.${ys}`);
 }
 
 function shouldSkipItem(item: SheetItem): boolean {
@@ -133,7 +134,7 @@ function shouldSkipItem(item: SheetItem): boolean {
 export function compare(
   sheetRows: unknown[][],
   dbRecords: DBRecord[],
-  month: string
+  month: string,
 ): Report {
   const allItems = parseSheetItems(sheetRows).filter((it) => it.name);
   const activeItems = allItems.filter((it) => it.writtenOff > 0);
@@ -154,9 +155,7 @@ export function compare(
       return amountMatch;
     });
 
-    const keywordMatch = candidates.find((r) =>
-      matchesByNoteKeywords(item.name, r.note)
-    );
+    const keywordMatch = candidates.find((r) => matchesByNoteKeywords(item.name, r.note));
     const bestMatch = keywordMatch ?? candidates[0];
 
     if (bestMatch) {
@@ -233,16 +232,20 @@ export function compare(
       .reduce((s, it) => s + it.rounding, 0);
 
     const maxOk = Math.abs(computedMax - env.max) < 1;
-    const maxDetail = maxOk
-      ? `Max=${env.max} ✓`
-      : `Max=${env.max}, computed=${computedMax} ✗`;
+    const maxDetail = maxOk ? `Max=${env.max} ✓` : `Max=${env.max}, computed=${computedMax} ✗`;
 
     const expectedExcess = env.realToday - env.shouldEnd;
     const excessOk = Math.abs(expectedExcess - env.excess) < 0.02;
     const expectedDiff = env.realToday - env.shouldToday;
     const diffOk = Math.abs(expectedDiff - env.diff) < 0.02;
 
-    envelopeChecks.push({ label: env.label, maxOk, maxDetail, excessOk, diffOk });
+    envelopeChecks.push({
+      label: env.label,
+      maxOk,
+      maxDetail,
+      excessOk,
+      diffOk,
+    });
   }
 
   const totalSheet = activeItems.reduce((s, i) => s + i.writtenOff, 0);
@@ -297,7 +300,7 @@ export function buildMessage(report: Report): string {
 
   const totalItems = report.matched.length + report.discrepancies.length;
   lines.push(
-    `✅ ${report.matched.length}/${totalItems} items matched`
+    `✅ ${report.matched.length}/${totalItems} items matched`,
   );
   if (report.discrepancies.length > 0) {
     lines.push(`❌ ${report.discrepancies.length} discrepancies`);
@@ -311,11 +314,11 @@ export function buildMessage(report: Report): string {
     for (const d of report.discrepancies) {
       if (d.status === "missing_from_db") {
         lines.push(
-          `• ${esc(d.sheetName)} — sheet: €${fmt(d.sheetAmount!)} — <i>${esc(d.detail ?? "")}</i>`
+          `• ${esc(d.sheetName)} — sheet: €${fmt(d.sheetAmount!)} — <i>${esc(d.detail ?? "")}</i>`,
         );
       } else {
         lines.push(
-          `• ${esc(d.sheetName)} — ${esc(d.detail ?? "")}`
+          `• ${esc(d.sheetName)} — ${esc(d.detail ?? "")}`,
         );
       }
     }
@@ -344,7 +347,10 @@ export function buildMessage(report: Report): string {
   }
 
   lines.push("", `<b>📊 Summary:</b> ${esc(report.summaryCheck.detail)}`);
-  lines.push("", `<i>🤖 Kaufbot · ${new Date().toLocaleString("de-DE", { hour: "2-digit", minute: "2-digit" })}</i>`);
+  lines.push(
+    "",
+    `<i>🤖 Kaufbot · ${new Date().toLocaleString("de-DE", { hour: "2-digit", minute: "2-digit" })}</i>`,
+  );
 
   return lines.join("\n");
 }

@@ -14,7 +14,7 @@ export function parseEuro(s: string | number | null | undefined): number {
       .replace("€", "")
       .replace(/\u00a0/g, "")
       .replace(/\s/g, "")
-      .replace(",", ".")
+      .replace(",", "."),
   );
 }
 
@@ -23,21 +23,36 @@ function getDb() {
   if (_db) return _db;
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
   if (dbUrl) {
-    _db = postgres(dbUrl, { max: 1, idle_timeout: 10, connect_timeout: 10, connection: { application_name: "daily-rec-gsheets" } });
+    _db = postgres(dbUrl, {
+      max: 1,
+      idle_timeout: 10,
+      connect_timeout: 10,
+      connection: { application_name: "daily-rec-gsheets" },
+    });
     return _db;
   }
   const projectUrl = Deno.env.get("SUPABASE_URL");
   const dbPassword = Deno.env.get("SUPABASE_DB_PASSWORD");
   if (!projectUrl || !dbPassword) throw new Error("Missing DB config");
   const projectRef = new URL(projectUrl).hostname.split(".")[0];
-  _db = postgres(`postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`, { max: 1, idle_timeout: 10, connect_timeout: 10, connection: { application_name: "daily-rec-gsheets" } });
+  _db = postgres(
+    `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`,
+    {
+      max: 1,
+      idle_timeout: 10,
+      connect_timeout: 10,
+      connection: { application_name: "daily-rec-gsheets" },
+    },
+  );
   return _db;
 }
 
 async function getServiceAccountKey() {
   const db = getDb();
   const rows = await db`SELECT value FROM app_config WHERE key = 'GCP_SERVICE_ACCOUNT_KEY'`;
-  if (rows.length === 0) throw new Error("GCP_SERVICE_ACCOUNT_KEY not found in app_config");
+  if (rows.length === 0) {
+    throw new Error("GCP_SERVICE_ACCOUNT_KEY not found in app_config");
+  }
   return JSON.parse(rows[0].value);
 }
 
@@ -75,7 +90,7 @@ export async function fetchSheetTabNames(): Promise<string[]> {
 
 export async function fetchSheetRange(
   tabName: string,
-  range: string = config.sheetRange
+  range: string = config.sheetRange,
 ): Promise<string[][]> {
   const client = await ensureClient();
   const resp = await client.values.get({

@@ -69,7 +69,7 @@ export class DatabaseRepository {
   async getLocalValues(
     table: string,
     ids: string[],
-    fields: string[]
+    fields: string[],
   ): Promise<Map<string, Record<string, unknown>>> {
     if (ids.length === 0) return new Map();
     assertTable(table);
@@ -90,19 +90,23 @@ export class DatabaseRepository {
   async upsertRows(
     table: string,
     rows: Record<string, unknown>[],
-    preserveLocalFields?: string[]
+    preserveLocalFields?: string[],
   ): Promise<SyncStats> {
     const stats: SyncStats = { fetched: rows.length, added: 0, updated: 0 };
     if (rows.length === 0) return stats;
     assertTable(table);
 
-    const ids = rows.map(r => r.id as string).filter(Boolean);
+    const ids = rows.map((r) => r.id as string).filter(Boolean);
     const existingIds = await this.getExistingIds(table, ids);
 
     let finalRows = rows;
     if (preserveLocalFields && preserveLocalFields.length > 0) {
-      const localValues = await this.getLocalValues(table, ids, preserveLocalFields);
-      finalRows = rows.map(row => {
+      const localValues = await this.getLocalValues(
+        table,
+        ids,
+        preserveLocalFields,
+      );
+      finalRows = rows.map((row) => {
         const local = localValues.get(row.id as string);
         if (!local) return row;
         const merged = { ...row };
@@ -133,20 +137,25 @@ export class DatabaseRepository {
         `(${columns.map((_, ci) => `$${bi * columns.length + ci + 1}`).join(", ")})`
       ).join(", ");
 
-      const flatValues = batch.flatMap(row => columns.map(col => row[col]));
+      const flatValues = batch.flatMap((row) => columns.map((col) => row[col]));
 
       await sql.unsafe(
-        `INSERT INTO ${table} (${columns.map(c => `"${c}"`).join(", ")})
+        `INSERT INTO ${table} (${columns.map((c) => `"${c}"`).join(", ")})
          VALUES ${placeholders}
-         ON CONFLICT (id) DO UPDATE SET ${columns.filter(c => c !== "id").map(c => `"${c}" = EXCLUDED."${c}"`).join(", ")}`,
-        flatValues
+         ON CONFLICT (id) DO UPDATE SET ${
+          columns.filter((c) => c !== "id").map((c) => `"${c}" = EXCLUDED."${c}"`).join(", ")
+        }`,
+        flatValues,
       );
     }
 
     return stats;
   }
 
-  async getLocalRecordIds(windowStart: string, windowEnd: string): Promise<Set<string>> {
+  async getLocalRecordIds(
+    windowStart: string,
+    windowEnd: string,
+  ): Promise<Set<string>> {
     const result = new Set<string>();
     let offset = 0;
     while (true) {

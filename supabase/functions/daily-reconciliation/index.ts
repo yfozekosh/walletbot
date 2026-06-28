@@ -1,12 +1,23 @@
 import { config } from "./config.ts";
 import { fetchSheetRange } from "./google-sheets.ts";
 import { fetchCurrentMonthExpenses, loadConfig } from "./db.ts";
-import { compare, buildMessage } from "./compare.ts";
+import { buildMessage, compare } from "./compare.ts";
 import { TelegramClient } from "./telegram-client.ts";
 
 const MONTH_NAMES = [
-  "", "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 function verifyServiceRole(req: Request): Response | null {
@@ -34,7 +45,9 @@ Deno.serve(async (req: Request) => {
     const monthName = MONTH_NAMES[month];
     const tabName = `${monthName}`;
 
-    console.log(`Running reconciliation for ${monthName} ${year} (tab: ${tabName})`);
+    console.log(
+      `Running reconciliation for ${monthName} ${year} (tab: ${tabName})`,
+    );
 
     const sheetRows = await fetchSheetRange(tabName);
     if (sheetRows.length === 0) {
@@ -72,7 +85,7 @@ Deno.serve(async (req: Request) => {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (err) {
     console.error("Reconciliation error:", err);
@@ -81,7 +94,7 @@ Deno.serve(async (req: Request) => {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   }
 });

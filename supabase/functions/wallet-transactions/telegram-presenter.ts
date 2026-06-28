@@ -2,7 +2,10 @@ import { TransactionRecord } from "./database-repository.ts";
 import { config } from "./config.ts";
 
 function esc(s: string | null | undefined): string {
-  return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return (s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(
+    />/g,
+    "&gt;",
+  );
 }
 
 function fmt(value: number, currency: string): string {
@@ -16,23 +19,37 @@ function fmt(value: number, currency: string): string {
 
 function accountEmoji(type: string | null): string {
   switch ((type ?? "").toLowerCase()) {
-    case "currentaccount": return "\uD83C\uDFE6";
-    case "savings":        return "\uD83D\uDC37";
-    case "creditcard":     return "\uD83D\uDCB3";
-    case "cash":           return "\uD83D\uDCB5";
-    case "investment":     return "\uD83D\uDCC8";
-    case "loan":           return "\uD83D\uDCCB";
-    case "mortgage":       return "\uD83C\uDFE0";
-    default:               return "\uD83D\uDCB0";
+    case "currentaccount":
+      return "\uD83C\uDFE6";
+    case "savings":
+      return "\uD83D\uDC37";
+    case "creditcard":
+      return "\uD83D\uDCB3";
+    case "cash":
+      return "\uD83D\uDCB5";
+    case "investment":
+      return "\uD83D\uDCC8";
+    case "loan":
+      return "\uD83D\uDCCB";
+    case "mortgage":
+      return "\uD83C\uDFE0";
+    default:
+      return "\uD83D\uDCB0";
   }
 }
 
-function typeEmoji(recordType: string | null, isTransfer: boolean | null): string {
+function typeEmoji(
+  recordType: string | null,
+  isTransfer: boolean | null,
+): string {
   if (isTransfer) return "\u2195\uFE0F";
   switch (recordType) {
-    case "income":  return "\uD83D\uDCE5";
-    case "expense": return "\uD83D\uDCE4";
-    default:        return "\uD83D\uDCB0";
+    case "income":
+      return "\uD83D\uDCE5";
+    case "expense":
+      return "\uD83D\uDCE4";
+    default:
+      return "\uD83D\uDCB0";
   }
 }
 
@@ -65,19 +82,23 @@ export class TelegramPresenter {
     records: TransactionRecord[],
     accountNames: Record<string, { name: string; type: string | null }>,
     dateLabel: string,
-    options: BuildMessageOptions = { mode: "command" }
+    options: BuildMessageOptions = { mode: "command" },
   ): string {
     const lines: string[] = [];
 
     if (options.mode === "cron") {
-      lines.push(`<b>\uD83D\uDCB3 Transactions (cron) \u2014 ${esc(dateLabel)}</b>`);
+      lines.push(
+        `<b>\uD83D\uDCB3 Transactions (cron) \u2014 ${esc(dateLabel)}</b>`,
+      );
       if (options.omittedCount && options.omittedCount > 0) {
         lines.push(`<i>${options.omittedCount} already shown, skipped</i>`);
       }
     } else {
       lines.push(`<b>\uD83D\uDCB3 Transactions \u2014 ${esc(dateLabel)}</b>`);
     }
-    lines.push("\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501");
+    lines.push(
+      "\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501",
+    );
 
     if (records.length === 0) {
       lines.push("");

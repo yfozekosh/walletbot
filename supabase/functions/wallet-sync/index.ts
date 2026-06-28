@@ -2,7 +2,7 @@ import { WalletApiClient } from "./api-client.ts";
 import { createRepository, DatabaseRepository } from "./database-repository.ts";
 import { SYNCERS } from "./syncer-registry.ts";
 import { Reconciler } from "./reconciler.ts";
-import { SyncConfig, SyncStats, SyncMode, EntitySyncer } from "./types.ts";
+import { EntitySyncer, SyncConfig, SyncMode, SyncStats } from "./types.ts";
 
 function verifyServiceRole(req: Request): Response | null {
   const auth = req.headers.get("Authorization");
@@ -17,8 +17,9 @@ function loadConfig(): SyncConfig {
   const walletToken = Deno.env.get("WALLET_TOKEN");
   if (!walletToken) throw new Error("WALLET_TOKEN env var is required");
   const rawMode = Deno.env.get("WALLET_SYNC_MODE") ?? "amend";
-  if (rawMode !== "amend" && rawMode !== "rewrite")
+  if (rawMode !== "amend" && rawMode !== "rewrite") {
     throw new Error(`Invalid WALLET_SYNC_MODE: ${rawMode}`);
+  }
   return { walletToken, mode: rawMode };
 }
 
@@ -27,18 +28,24 @@ async function syncEntity(
   apiClient: WalletApiClient,
   repo: DatabaseRepository,
   mode: SyncMode,
-  syncStart: string
+  syncStart: string,
 ): Promise<SyncStats> {
   console.log(`Syncing ${syncer.entityName} (mode=${mode})...`);
 
   if (syncer.dateChunkDays) {
     console.log(`  Using date-chunked fetch...`);
-    const items = await apiClient.fetchRecordsInDateChunks(syncer.dateChunkDays);
+    const items = await apiClient.fetchRecordsInDateChunks(
+      syncer.dateChunkDays,
+    );
     console.log(`  Fetched ${items.length} items`);
 
     if (items.length > 0) {
       const rows = items.map((item) => syncer.transform(item));
-      const stats = await repo.upsertRows(syncer.tableName, rows, syncer.preserveLocalFields);
+      const stats = await repo.upsertRows(
+        syncer.tableName,
+        rows,
+        syncer.preserveLocalFields,
+      );
       console.log(`  Added: ${stats.added}, Updated: ${stats.updated}`);
       await repo.setSyncState(syncer.entityName, syncStart);
       return stats;
@@ -64,12 +71,16 @@ async function syncEntity(
   }
 
   const items: Record<string, unknown>[] = [];
-  const params: Record<string, string | number | string[]> = { limit: syncer.pageLimit ?? 200, offset: 0 };
+  const params: Record<string, string | number | string[]> = {
+    limit: syncer.pageLimit ?? 200,
+    offset: 0,
+  };
   if (updatedAfter) params["updatedAt"] = `gte.${updatedAfter}`;
 
   while (true) {
     const page = await apiClient.get(syncer.endpoint, params);
-    const pageItems = (page[syncer.responseKey] as Record<string, unknown>[]) ?? [];
+    const pageItems = (page[syncer.responseKey] as Record<string, unknown>[]) ??
+      [];
     if (pageItems.length === 0) break;
     items.push(...pageItems);
     const nextOffset = page["nextOffset"];
@@ -81,7 +92,11 @@ async function syncEntity(
 
   if (items.length > 0) {
     const rows = items.map((item) => syncer.transform(item));
-    const stats = await repo.upsertRows(syncer.tableName, rows, syncer.preserveLocalFields);
+    const stats = await repo.upsertRows(
+      syncer.tableName,
+      rows,
+      syncer.preserveLocalFields,
+    );
     console.log(`  Added: ${stats.added}, Updated: ${stats.updated}`);
     await repo.setSyncState(syncer.entityName, syncStart);
     return stats;
@@ -111,7 +126,8 @@ Deno.serve(async (req: Request) => {
   } catch (err) {
     console.error("Config error:", err);
     return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500, headers: { "Content-Type": "application/json" },
+      status: 500,
+      headers: { "Content-Type": "application/json" },
     });
   }
 
@@ -133,19 +149,32 @@ Deno.serve(async (req: Request) => {
 
   for (const syncer of SYNCERS) {
     try {
-      const stats = await syncEntity(syncer, apiClient, repo, syncConfig.mode, syncStart);
+      const stats = await syncEntity(
+        syncer,
+        apiClient,
+        repo,
+        syncConfig.mode,
+        syncStart,
+      );
       entityStats[syncer.entityName] = stats;
     } catch (err) {
       console.error(`Error syncing '${syncer.entityName}':`, err);
       failed.push(syncer.entityName);
-      entityStats[syncer.entityName] = { fetched: 0, added: 0, updated: 0, error: String(err) };
+      entityStats[syncer.entityName] = {
+        fetched: 0,
+        added: 0,
+        updated: 0,
+        error: String(err),
+      };
     }
   }
 
   let reconcileResult = { deleted: 0, windowStart: "", windowEnd: "" };
   try {
     reconcileResult = await reconciler.run();
-    console.log(`  Reconcile complete: deleted ${reconcileResult.deleted} orphaned records`);
+    console.log(
+      `  Reconcile complete: deleted ${reconcileResult.deleted} orphaned records`,
+    );
   } catch (err) {
     console.error("Reconcile step failed:", err);
     failed.push("reconcile");
@@ -153,19 +182,24 @@ Deno.serve(async (req: Request) => {
 
   const ok = failed.length === 0;
   return new Response(
-    JSON.stringify({
-      sync_start: syncStart,
-      mode: syncConfig.mode,
-      succeeded: SYNCERS.length - failed.filter(f => f !== "reconcile").length,
-      total: SYNCERS.length,
-      failed,
-      entities: entityStats,
-      reconcile: {
-        window: `${reconcileResult.windowStart} -> ${reconcileResult.windowEnd}`,
-        deleted: reconcileResult.deleted,
+    JSON.stringify(
+      {
+        sync_start: syncStart,
+        mode: syncConfig.mode,
+        succeeded: SYNCERS.length -
+          failed.filter((f) => f !== "reconcile").length,
+        total: SYNCERS.length,
+        failed,
+        entities: entityStats,
+        reconcile: {
+          window: `${reconcileResult.windowStart} -> ${reconcileResult.windowEnd}`,
+          deleted: reconcileResult.deleted,
+        },
+        status: ok ? "ok" : "partial_failure",
       },
-      status: ok ? "ok" : "partial_failure",
-    }, null, 2),
-    { status: ok ? 200 : 207, headers: { "Content-Type": "application/json" } }
+      null,
+      2,
+    ),
+    { status: ok ? 200 : 207, headers: { "Content-Type": "application/json" } },
   );
 });

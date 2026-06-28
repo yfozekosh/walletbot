@@ -1,4 +1,4 @@
-import postgres from 'npm:postgres';
+import postgres from "npm:postgres";
 
 function getConnectionString(): string {
   const dbUrl = Deno.env.get("SUPABASE_DB_URL");
@@ -11,14 +11,14 @@ function getConnectionString(): string {
     throw new Error("SUPABASE_URL environment variable is required");
   }
 
-  const projectRef = new URL(projectUrl).hostname.split('.')[0];
+  const projectRef = new URL(projectUrl).hostname.split(".")[0];
 
   if (dbPassword) {
     return `postgresql://postgres:${dbPassword}@db.${projectRef}.supabase.co:5432/postgres`;
   }
 
   throw new Error(
-    "Cannot construct database connection string. Set SUPABASE_DB_URL or SUPABASE_DB_PASSWORD."
+    "Cannot construct database connection string. Set SUPABASE_DB_URL or SUPABASE_DB_PASSWORD.",
   );
 }
 
@@ -30,7 +30,7 @@ const sql = postgres(connectionString, {
   connect_timeout: 10,
   max_lifetime: 60 * 5,
   connection: {
-    application_name: 'wallet-sync',
+    application_name: "wallet-sync",
   },
 });
 
