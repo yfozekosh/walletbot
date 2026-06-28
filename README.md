@@ -16,70 +16,77 @@ Home finance automation — syncs transaction data from **BudgetBakers Wallet** 
 
 ## Architecture
 
+### Wallet Flow
+
 ```mermaid
 flowchart LR
   subgraph Ext["External"]
     WB[BudgetBakers API]
     GS[Google Sheets]
-    JW[Jira Webhook]
+    User["You type /sync /report /transactions"]
   end
 
-  subgraph Cron["Cron Scheduler (pg_cron)"]
+  subgraph Cron["Cron Scheduler"]
     C1["⏰ every 29min"]
     C2["⏰ daily 06:00"]
     C3["⏰ daily 07:00"]
-    C4["⏰ every 1min"]
   end
 
   subgraph Fn["Edge Functions"]
+    TB[telegram-bot]
     WS[wallet-sync]
     DR[daily-reconciliation]
     WBAL[wallet-balances]
     WT[wallet-transactions]
-    TB[telegram-bot]
-    JT[jira-telegram]
-    JBS[jira-batch-sender]
   end
 
-  subgraph DB["Postgres Database"]
-    TBL[("wallet_* tables")]
-    BUF[("jira_buffer table")]
-  end
+  DB[("Postgres Database")]
 
   subgraph Out["Output"]
     TG[Telegram chats]
   end
 
-  %% Cron triggers
   C1 --> WS
   C2 --> DR
   C3 --> WBAL
-  C4 -->|"polls via check_buffer_and_poke()"| JBS
 
-  %% External data sources
-  WB -->|fetch records| WS
-  GS -->|read month| DR
-  JW -->|webhook| JT -->|insert payload| BUF
-  BUF -->|read then delete| JBS
+  WB -->|fetch| WS -->|upsert| DB
+  GS -->|read| DR
+  DB -->|balances| WBAL -->|report| TG
+  DB -->|records| WT -->|transactions| TG
+  DB -->|compare| DR -->|result| TG
 
-  %% Edge function chains
-  WS -->|upsert| TBL
-  TBL -->|query| WBAL
-  TBL -->|query| WT
-  TBL -->|query| DR
-  JBS -->|send| TG
-  WBAL -->|send message| TG
-  WT -->|send message| TG
-  DR -->|send message| TG
-
-  %% Telegram bot flow
-  User["You type a command"] -.->|/sync /report /transactions| TB
-  TB -- "HTTP POST (service_role)" --> WS
-  TB -- "HTTP POST (service_role)" --> WBAL
-  TB -- "HTTP POST (service_role)" --> WT
+  User -.->|webhook| TB
+  TB -- "HTTP POST" --> WS
+  TB -- "HTTP POST" --> WBAL
+  TB -- "HTTP POST" --> WT
 ```
 
-**Legend:** ▢ = Edge Function | 💾 = Database table | ⏰ = Cron schedule | ➡️ = direct call | -➡️ = indirect (DB poll) | -.-> = webhook | Label on arrow = action
+### Jira Flow
+
+```mermaid
+flowchart LR
+  subgraph Ext["External"]
+    JW[Jira Webhook]
+  end
+
+  subgraph Fn["Edge Functions"]
+    JT[jira-telegram]
+    JBS[jira-batch-sender]
+  end
+
+  BUF[("jira_buffer table")]
+
+  subgraph Out["Output"]
+    TG[Telegram chats]
+  end
+
+  JW -->|HMAC webhook| JT -->|insert| BUF
+  BUF -->|"read + delete"| JBS
+  JBS -->|notify| TG
+
+  Cron["⏰ every 1min"] -.->|"check_buffer_and_poke()"| BUF
+```
 
 ## Edge Functions
 
