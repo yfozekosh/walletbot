@@ -1,0 +1,10 @@
+[project]
+# Override via: ./deploy.sh <project-ref>  or  SUPABASE_PROJECT_REF=<ref> ./deploy.sh
+# project_id = ""
+
+[functions]
+# All functions have verify_jwt=false because auth is handled internally
+# (service_role key check, HMAC, or webhook secret)
+
+[database]
+# Use local migration files
