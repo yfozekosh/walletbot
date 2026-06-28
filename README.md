@@ -18,47 +18,68 @@ Home finance automation — syncs transaction data from **BudgetBakers Wallet** 
 
 ```mermaid
 flowchart LR
-  subgraph External
-    WB[BudgetBakers Wallet API]
+  subgraph Ext["External"]
+    WB[BudgetBakers API]
     GS[Google Sheets]
     JW[Jira Webhook]
   end
 
-  subgraph Bot["Telegram Bot"]
-    User{{"You in Telegram"}} -.-> TG[Telegram API]
-    TG -.-> TB[telegram-bot webhook]
+  subgraph Cron["Cron Scheduler (pg_cron)"]
+    C1["⏰ every 29min"]
+    C2["⏰ daily 06:00"]
+    C3["⏰ daily 07:00"]
+    C4["⏰ every 1min"]
   end
 
-  subgraph Functions["Edge Functions"]
+  subgraph Fn["Edge Functions"]
     WS[wallet-sync]
+    DR[daily-reconciliation]
     WBAL[wallet-balances]
     WT[wallet-transactions]
-    DR[daily-reconciliation]
+    TB[telegram-bot]
     JT[jira-telegram]
     JBS[jira-batch-sender]
   end
 
   subgraph DB["Postgres Database"]
-    direction LR
-    MAIN[("wallet_* tables")]
+    TBL[("wallet_* tables")]
     BUF[("jira_buffer table")]
   end
 
-  subgraph Output
-    NOTIF[Telegram notifications]
+  subgraph Out["Output"]
+    TG[Telegram chats]
   end
 
-  WB -- every 29min --> WS --> MAIN
-  MAIN --> WBAL -- daily 07:00 --> NOTIF
-  MAIN --> WT -- cron / manual --> NOTIF
-  GS --> DR -- daily 06:00 --> NOTIF
-  JW --> JT --> BUF -- every 1min --> JBS --> NOTIF
-  TB -.->|triggers| WS
-  TB -.->|triggers| WBAL
-  TB -.->|triggers| WT
+  %% Cron triggers
+  C1 --> WS
+  C2 --> DR
+  C3 --> WBAL
+  C4 -->|polls via check_buffer_and_poke()| JBS
+
+  %% External data sources
+  WB -->|fetch records| WS
+  GS -->|read month| DR
+  JW -->|webhook| JT -->|insert payload| BUF
+  BUF -->|read then delete| JBS
+
+  %% Edge function chains
+  WS -->|upsert| TBL
+  TBL -->|query| WBAL
+  TBL -->|query| WT
+  TBL -->|query| DR
+  JBS -->|send| TG
+  WBAL -->|send message| TG
+  WT -->|send message| TG
+  DR -->|send message| TG
+
+  %% Telegram bot flow
+  User{{"You type a command"}} -.->|/sync /report /transactions| TB
+  TB -- "HTTP POST (service_role)" --> WS
+  TB -- "HTTP POST (service_role)" --> WBAL
+  TB -- "HTTP POST (service_role)" --> WT
 ```
 
-**Legend:** ▢ = Edge Function | 💾 = Table | ➡️ = direct call | -➡️ = webhook | Label = trigger
+**Legend:** ▢ = Edge Function | 💾 = Database table | ⏰ = Cron schedule | ➡️ = direct call | -➡️ = indirect (DB poll) | -.-> = webhook | Label on arrow = action
 
 ## Edge Functions
 
