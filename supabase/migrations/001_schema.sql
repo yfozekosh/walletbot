@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS public.app_config (
 
 ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
 
+-- Only service_role can access app_config (edge functions bypass RLS via direct DB conn)
+CREATE POLICY "service_role_only" ON public.app_config
+  FOR ALL
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
+
 -- ============================================================
 -- WALLET SYNC STATE
 -- ============================================================
@@ -452,6 +459,7 @@ END;
 $$;
 
 -- check_buffer_and_poke: pokes jira-batch-sender if buffer has data
+-- SECURITY DEFINER required for net.http_post (only callable by cron as postgres)
 CREATE OR REPLACE FUNCTION public.check_buffer_and_poke()
 RETURNS VOID
 LANGUAGE plpgsql
@@ -461,7 +469,10 @@ BEGIN
   IF EXISTS (SELECT 1 FROM jira_buffer LIMIT 1) THEN
     PERFORM net.http_post(
       url := 'https://kiqwqrginagwykvkavdh.supabase.co/functions/v1/jira-batch-sender',
-      headers := '{"Content-Type":"application/json"}'::jsonb,
+      headers := jsonb_build_object(
+        'Authorization', 'Bearer ' || current_setting('supabase.service_role_key'),
+        'Content-Type', 'application/json'
+      ),
       body := '{}'::jsonb
     );
   END IF;

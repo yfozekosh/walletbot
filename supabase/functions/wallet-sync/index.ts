@@ -4,6 +4,15 @@ import { SYNCERS } from "./syncer-registry.ts";
 import { Reconciler } from "./reconciler.ts";
 import { SyncConfig, SyncStats, SyncMode, EntitySyncer } from "./types.ts";
 
+function verifyServiceRole(req: Request): Response | null {
+  const auth = req.headers.get("Authorization");
+  const expected = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (auth !== `Bearer ${expected}`) {
+    return new Response("Unauthorized", { status: 403 });
+  }
+  return null;
+}
+
 function loadConfig(): SyncConfig {
   const walletToken = Deno.env.get("WALLET_TOKEN");
   if (!walletToken) throw new Error("WALLET_TOKEN env var is required");
@@ -85,6 +94,11 @@ async function syncEntity(
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST" && req.method !== "GET") {
     return new Response("Method not allowed", { status: 405 });
+  }
+
+  if (req.method === "POST") {
+    const authErr = verifyServiceRole(req);
+    if (authErr) return authErr;
   }
 
   const syncStart = new Date().toISOString();

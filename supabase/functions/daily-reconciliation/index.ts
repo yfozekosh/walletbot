@@ -9,10 +9,22 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+function verifyServiceRole(req: Request): Response | null {
+  const auth = req.headers.get("Authorization");
+  const expected = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (auth !== `Bearer ${expected}`) {
+    return new Response("Unauthorized", { status: 403 });
+  }
+  return null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "GET") {
     return new Response("daily-reconciliation active", { status: 200 });
   }
+
+  const authErr = verifyServiceRole(req);
+  if (authErr) return authErr;
 
   try {
     await loadConfig();

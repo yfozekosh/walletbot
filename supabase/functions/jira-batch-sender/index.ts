@@ -19,10 +19,22 @@ async function sendTelegram(botToken: string, chatId: string, text: string) {
   }
 }
 
+function verifyServiceRole(req: Request): Response | null {
+  const auth = req.headers.get("Authorization");
+  const expected = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (auth !== `Bearer ${expected}`) {
+    return new Response("Unauthorized", { status: 403 });
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "GET") {
     return new Response("jira-batch-sender active", { status: 200 });
   }
+
+  const authErr = verifyServiceRole(req);
+  if (authErr) return authErr;
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");

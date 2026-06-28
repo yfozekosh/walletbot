@@ -113,7 +113,11 @@ function isMonthly(freq: string): boolean {
 }
 
 function isDueInCurrentMonth(nextPayment: string): boolean {
-  return nextPayment.includes("06.2026") || nextPayment.includes("06.26");
+  const now = new Date();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const y = String(now.getFullYear());
+  const ys = y.slice(2);
+  return nextPayment.includes(`${m}.${y}`) || nextPayment.includes(`${m}.${ys}`);
 }
 
 function shouldSkipItem(item: SheetItem): boolean {
