@@ -54,7 +54,7 @@ flowchart LR
   C1 --> WS
   C2 --> DR
   C3 --> WBAL
-  C4 -->|polls via check_buffer_and_poke()| JBS
+  C4 -->|"polls via check_buffer_and_poke()"| JBS
 
   %% External data sources
   WB -->|fetch records| WS
