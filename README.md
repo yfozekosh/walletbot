@@ -1,6 +1,18 @@
 # walletbot
 
-Wallet data sync, financial reporting, and Jira notifications via Supabase Edge Functions + Telegram.
+Home finance automation — syncs transaction data from **BudgetBakers Wallet** (a personal finance app that connects to bank accounts via PSD2/Open Banking) into Supabase, tracks planned spending in Google Sheets, and delivers daily reports, transaction digests, and reconciliation summaries to Telegram. Also bridges Jira issue updates to Telegram for team notifications.
+
+### What is Wallet?
+
+[Wallet by BudgetBakers](https://budgetbakers.com) is a personal finance manager that links to bank accounts, auto-categorizes transactions, and tracks budgets against spending. It exposes a REST API for accounts, categories, labels, budgets, goals, and records — this project syncs all of that into a local Supabase DB for custom analytics, reporting, and reconciliation against a manual planned-expenses sheet.
+
+### What it does
+
+- **Syncs** all Wallet data (accounts, categories, labels, budgets, goals, 2400+ records) into Supabase every 29 minutes
+- **Reports** account balances, monthly cashflow, and pending cross-account transfers to Telegram daily at 07:00
+- **Sends** new transactions as they appear (cron mode, deduplicated)
+- **Reconciles** Google Sheets planned expenses against actual DB transactions every morning at 08:00 CEST — flags discrepancies, missing items, and envelope budget violations
+- **Notifies** Jira issue changes (creation, updates, comments, worklogs) to a Telegram chat within seconds
 
 ## Architecture
 
